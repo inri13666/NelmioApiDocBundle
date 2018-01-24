@@ -12,7 +12,6 @@
 namespace Nelmio\ApiDocBundle\Extractor;
 
 use Doctrine\Common\Annotations\Reader;
-use Doctrine\Common\Util\ClassUtils;
 use Nelmio\ApiDocBundle\Annotation\ApiDoc;
 use Nelmio\ApiDocBundle\DataTypes;
 use Nelmio\ApiDocBundle\Parser\ParserInterface;
@@ -20,28 +19,20 @@ use Nelmio\ApiDocBundle\Parser\PostParserInterface;
 use Nelmio\ApiDocBundle\Util\DocCommentExtractor;
 use Symfony\Bundle\FrameworkBundle\Controller\ControllerNameParser;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Route;
-use Symfony\Component\Routing\RouterInterface;
+use Symfony\Component\Routing\RouteCollection;
 
 class ApiDocExtractor
 {
     const ANNOTATION_CLASS = 'Nelmio\\ApiDocBundle\\Annotation\\ApiDoc';
 
     /**
-     * @var ContainerInterface
-     */
-    protected $container;
-
-    /**
-     * @var RouterInterface
-     */
-    protected $router;
-
-    /**
      * @var Reader
      */
     protected $reader;
+
+    /** @var RouteCollection */
+    protected $routeCollection;
 
     /**
      * @var DocCommentExtractor
@@ -68,14 +59,15 @@ class ApiDocExtractor
      */
     protected $annotationsProviders;
 
-    public function __construct(ContainerInterface $container, RouterInterface $router, Reader $reader, DocCommentExtractor $commentExtractor, ControllerNameParser $controllerNameParser, array $handlers, array $annotationsProviders)
-    {
-        $this->container            = $container;
-        $this->router               = $router;
-        $this->reader               = $reader;
-        $this->commentExtractor     = $commentExtractor;
-        $this->controllerNameParser = $controllerNameParser;
-        $this->handlers             = $handlers;
+    public function __construct(
+        Reader $reader,
+        DocCommentExtractor $commentExtractor,
+        array $handlers,
+        array $annotationsProviders
+    ) {
+        $this->reader = $reader;
+        $this->commentExtractor = $commentExtractor;
+        $this->handlers = $handlers;
         $this->annotationsProviders = $annotationsProviders;
     }
 
@@ -88,7 +80,23 @@ class ApiDocExtractor
      */
     public function getRoutes()
     {
-        return $this->router->getRouteCollection()->all();
+        return $this->getRouteCollection()->all();
+    }
+
+    /**
+     * @return RouteCollection
+     */
+    protected function getRouteCollection()
+    {
+        return $this->routeCollection;
+    }
+
+    /**
+     * @param RouteCollection $routeCollection
+     */
+    public function setRouteCollection(RouteCollection $routeCollection)
+    {
+        $this->routeCollection = $routeCollection;
     }
 
     /**
@@ -112,9 +120,9 @@ class ApiDocExtractor
      */
     public function extractAnnotations(array $routes, $view = ApiDoc::DEFAULT_VIEW)
     {
-        $array     = array();
+        $array = array();
         $resources = array();
-        $excludeSections = $this->container->getParameter('nelmio_api_doc.exclude_sections');
+        $excludeSections = [];//$this->container->getParameter('nelmio_api_doc.exclude_sections');
 
         foreach ($routes as $route) {
             if (!$route instanceof Route) {
@@ -151,7 +159,7 @@ class ApiDocExtractor
         rsort($resources);
         foreach ($array as $index => $element) {
             $hasResource = false;
-            $path        = $element['annotation']->getRoute()->getPath();
+            $path = $element['annotation']->getRoute()->getPath();
 
             foreach ($resources as $resource) {
                 if (0 === strpos($path, $resource) || $resource === $element['annotation']->getResource()) {
@@ -197,6 +205,18 @@ class ApiDocExtractor
     }
 
     /**
+     * @param ControllerNameParser $controllerNameParser
+     *
+     * @return $this
+     */
+    public function setControllerNameParser($controllerNameParser)
+    {
+        $this->controllerNameParser = $controllerNameParser;
+
+        return $this;
+    }
+
+    /**
      * Returns the ReflectionMethod for the given controller string.
      *
      * @param string $controller
@@ -205,34 +225,15 @@ class ApiDocExtractor
     public function getReflectionMethod($controller)
     {
         if (false === strpos($controller, '::') && 2 === substr_count($controller, ':')) {
-            $controller = $this->controllerNameParser->parse($controller);
+            if ($this->controllerNameParser) {
+                $controller = $this->controllerNameParser->parse($controller);
+            }
         }
 
         if (preg_match('#(.+)::([\w]+)#', $controller, $matches)) {
             $class = $matches[1];
             $method = $matches[2];
         } else {
-            if (preg_match('#(.+):([\w]+)#', $controller, $matches)) {
-                $controller = $matches[1];
-                $method = $matches[2];
-            }
-
-            if ($this->container->has($controller)) {
-                // BC SF < 3.0
-                if (method_exists($this->container, 'enterScope')) {
-                    $this->container->enterScope('request');
-                    $this->container->set('request', new Request(), 'request');
-                }
-                $class = ClassUtils::getRealClass(get_class($this->container->get($controller)));
-                // BC SF < 3.0
-                if (method_exists($this->container, 'enterScope')) {
-                    $this->container->leaveScope('request');
-                }
-
-                if (!isset($method) && method_exists($class, '__invoke')) {
-                    $method = '__invoke';
-                }
-            }
         }
 
         if (isset($class) && isset($method)) {
@@ -256,7 +257,7 @@ class ApiDocExtractor
     {
         if ($method = $this->getReflectionMethod($controller)) {
             if ($annotation = $this->reader->getMethodAnnotation($method, static::ANNOTATION_CLASS)) {
-                if ($route = $this->router->getRouteCollection()->get($route)) {
+                if ($route = $this->getRouteCollection()->get($route)) {
                     return $this->extractData($annotation, $route, $method);
                 }
             }
@@ -278,9 +279,10 @@ class ApiDocExtractor
     /**
      * Returns a new ApiDoc instance with more data.
      *
-     * @param  ApiDoc            $annotation
-     * @param  Route             $route
+     * @param  ApiDoc $annotation
+     * @param  Route $route
      * @param  \ReflectionMethod $method
+     *
      * @return ApiDoc
      */
     protected function extractData(ApiDoc $annotation, Route $route, \ReflectionMethod $method)
@@ -299,14 +301,14 @@ class ApiDocExtractor
 
         // input (populates 'parameters' for the formatters)
         if (null !== $input = $annotation->getInput()) {
-            $parameters      = array();
+            $parameters = array();
             $normalizedInput = $this->normalizeClassParameter($input);
 
             $supportedParsers = array();
             foreach ($this->getParsers($normalizedInput) as $parser) {
                 if ($parser->supports($normalizedInput)) {
                     $supportedParsers[] = $parser;
-                    $parameters         = $this->mergeParameters($parameters, $parser->parse($normalizedInput));
+                    $parameters = $this->mergeParameters($parameters, $parser->parse($normalizedInput));
                 }
             }
 
@@ -336,7 +338,7 @@ class ApiDocExtractor
 
         // output (populates 'response' for the formatters)
         if (null !== $output = $annotation->getOutput()) {
-            $response         = array();
+            $response = array();
             $supportedParsers = array();
 
             $normalizedOutput = $this->normalizeClassParameter($output);
@@ -366,7 +368,7 @@ class ApiDocExtractor
 
             foreach ($annotation->getResponseMap() as $code => $modelName) {
 
-                if ('200' === (string) $code && isset($modelName['type']) && isset($modelName['model'])) {
+                if ('200' === (string)$code && isset($modelName['type']) && isset($modelName['model'])) {
                     /*
                      * Model was already parsed as the default `output` for this ApiDoc.
                      */
@@ -395,9 +397,7 @@ class ApiDocExtractor
                 $parameters = $this->generateHumanReadableTypes($parameters);
 
                 $annotation->setResponseForStatusCode($parameters, $normalizedModel, $code);
-
             }
-
         }
 
         return $annotation;
@@ -406,9 +406,9 @@ class ApiDocExtractor
     protected function normalizeClassParameter($input)
     {
         $defaults = array(
-            'class'   => '',
-            'groups'  => array(),
-            'options'  => array(),
+            'class' => '',
+            'groups' => array(),
+            'options' => array(),
         );
 
         // normalize strings
@@ -451,11 +451,12 @@ class ApiDocExtractor
      *  - Array parameters are recursively merged.
      *  - Non-null default values prevail over null default values. Later values overrides previous defaults.
      *
-     * However, if newly-returned parameter array contains a parameter with NULL, the parameter is removed from the merged results.
-     * If the parameter is not present in the newly-returned array, then it is left as-is.
+     * However, if newly-returned parameter array contains a parameter with NULL, the parameter is removed from the
+     * merged results. If the parameter is not present in the newly-returned array, then it is left as-is.
      *
      * @param  array $p1 The pre-existing parameters array.
      * @param  array $p2 The newly-returned parameters array.
+     *
      * @return array The resulting, merged array.
      */
     protected function mergeParameters($p1, $p2)
@@ -513,8 +514,8 @@ class ApiDocExtractor
      * Parses annotations for a given method, and adds new information to the given ApiDoc
      * annotation. Useful to extract information from the FOSRestBundle annotations.
      *
-     * @param ApiDoc           $annotation
-     * @param Route            $route
+     * @param ApiDoc $annotation
+     * @param Route $route
      * @param ReflectionMethod $method
      */
     protected function parseAnnotations(ApiDoc $annotation, Route $route, \ReflectionMethod $method)
@@ -529,6 +530,7 @@ class ApiDocExtractor
      * Clears the temporary 'class' parameter from the parameters array before it is returned.
      *
      * @param  array $array The source array.
+     *
      * @return array The cleared array.
      */
     protected function clearClasses($array)
@@ -547,6 +549,7 @@ class ApiDocExtractor
      * Populates the `dataType` properties in the parameter array if empty. Recurses through children when necessary.
      *
      * @param  array $array
+     *
      * @return array
      */
     protected function generateHumanReadableTypes(array $array)
@@ -570,6 +573,7 @@ class ApiDocExtractor
      *
      * @param  string $actualType
      * @param  string $subType
+     *
      * @return string
      */
     protected function generateHumanReadableType($actualType, $subType)

@@ -73,7 +73,7 @@ class HtmlFormatter extends AbstractFormatter
     /**
      * @var string
      */
-    private $motdTemplate;
+    private $motdTemplate = 'Components/motd.html.twig';
 
     /**
      * @var boolean
@@ -197,7 +197,7 @@ class HtmlFormatter extends AbstractFormatter
      */
     protected function renderOne(array $data)
     {
-        return $this->engine->render('NelmioApiDocBundle::resource.html.twig', array_merge(
+        return $this->engine->render('resource.html.twig', array_merge(
             array(
                 'data'           => $data,
                 'displayContent' => true,
@@ -211,7 +211,7 @@ class HtmlFormatter extends AbstractFormatter
      */
     protected function render(array $collection)
     {
-        return $this->engine->render('NelmioApiDocBundle::resources.html.twig', array_merge(
+        return $this->engine->render('resources.html.twig', array_merge(
             array(
                 'resources' => $collection,
             ),
