@@ -53,7 +53,11 @@ class ApiDocHelper
         AnnotationRegistry::registerLoader(function ($class) {
             if (stripos('Swagger\Annotations', $class) == 0) {
                 $reflection = new \ReflectionClass(Info::class);
-                $fileToLoad = str_replace('Swagger\Annotations', dirname($reflection->getFileName()), $class) . '.php';
+                $fileToLoad = str_replace(
+                        '\\',
+                        DIRECTORY_SEPARATOR,
+                        str_replace('Swagger\Annotations', dirname($reflection->getFileName()), $class)
+                    ) . '.php';
                 if (is_readable($fileToLoad)) {
                     require_once $fileToLoad;
 
@@ -67,10 +71,11 @@ class ApiDocHelper
         AnnotationRegistry::registerLoader(function ($class) {
             if (stripos('Akuma\Component\ApiDoc\Annotation', $class) == 0) {
                 $reflection = new \ReflectionClass(Model::class);
-                $fileToLoad = str_replace(
-                        'Akuma\Component\ApiDoc\Annotation',
-                        dirname($reflection->getFileName()),
-                        $class
+                $fileToLoad =
+                    str_replace(
+                        '\\',
+                        DIRECTORY_SEPARATOR,
+                        str_replace('Akuma\Component\ApiDoc\Annotation', dirname($reflection->getFileName()), $class)
                     ) . '.php';
                 if (is_readable($fileToLoad)) {
                     require_once $fileToLoad;
