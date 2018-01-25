@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Nelmio\ApiDocBundle;
+namespace Akuma\Component\ApiDoc;
 
 /**
  * All the supported data-types which will be specified in the `actualType` properties in parameters.
@@ -18,32 +18,33 @@ namespace Nelmio\ApiDocBundle;
  */
 class DataTypes
 {
-    const INTEGER    = 'integer';
+    const INTEGER = 'integer';
 
-    const FLOAT      = 'float';
+    const FLOAT = 'float';
 
-    const STRING     = 'string';
+    const STRING = 'string';
 
-    const BOOLEAN    = 'boolean';
+    const BOOLEAN = 'boolean';
 
-    const FILE       = 'file';
+    const FILE = 'file';
 
-    const ENUM       = 'choice';
+    const ENUM = 'choice';
 
     const COLLECTION = 'collection';
 
-    const MODEL      = 'model';
+    const MODEL = 'model';
 
-    const DATE       = 'date';
+    const DATE = 'date';
 
-    const DATETIME   = 'datetime';
+    const DATETIME = 'datetime';
 
-    const TIME       = 'time';
+    const TIME = 'time';
 
     /**
      * Returns true if the supplied `actualType` value is considered a primitive type. Returns false, otherwise.
      *
      * @param  string $type
+     *
      * @return bool
      */
     public static function isPrimitive($type)

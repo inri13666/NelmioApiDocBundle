@@ -1,55 +1,129 @@
-NelmioApiDocBundle
+Akuma Api Doc Component
 ==================
 
-[![Build
-Status](https://secure.travis-ci.org/nelmio/NelmioApiDocBundle.png?branch=master)](http://travis-ci.org/nelmio/NelmioApiDocBundle)
-[![Total Downloads](https://poser.pugx.org/nelmio/api-doc-bundle/downloads)](https://packagist.org/packages/nelmio/api-doc-bundle)
-[![Latest Stable
-Version](https://poser.pugx.org/nelmio/api-doc-bundle/v/stable)](https://packagist.org/packages/nelmio/api-doc-bundle)
+Based on [NelmioApiDocBundle](https://github.com/nelmio/NelmioApiDocBundle)
 
-The **NelmioApiDocBundle** bundle allows you to generate a decent documentation
-for your APIs.
-
-Documentation
--------------
-
-[Read the documentation on symfony.com](https://symfony.com/doc/current/bundles/NelmioApiDocBundle/index.html)
+This component allows to use functionality of NelmioApiDocBundle, but not only with symfony.
+It can be used with any framework or pure php
 
 
-Contributing
-------------
+##### Silex 1.2 Example
 
-See
-[CONTRIBUTING](https://github.com/nelmio/NelmioApiDocBundle/blob/master/CONTRIBUTING.md)
-file.
+###### app/config/routes.yml
+```yml
+acme.api_doc_route:
+    path: /api-doc
+    methods: ['POST']
+    defaults: { _controller: 'Acme\DocsController::indexAction' }
 
+acme.api_doc_route:
+    path: /api-doc
+    methods: ['POST']
+    defaults: { _controller: 'Acme\ApiController::anyAction' }
+```
 
-Running the Tests
------------------
+###### DocsController.php
+```php
+<?php
 
-Install the [Composer](http://getcomposer.org/) `dev` dependencies:
+namespace Acme;
 
-    php composer.phar install --dev
+use Akuma\Component\ApiDoc\Annotation\ApiDoc;
+use Akuma\Component\ApiDoc\Util\ApiDocHelper;
+use Doctrine\Common\Annotations\AnnotationRegistry;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\RouteCollection;
 
-Then, run the test suite using
-[PHPUnit](https://github.com/sebastianbergmann/phpunit/):
+class DocsController
+{
+    /**
+     * @param string $view
+     *
+     * @return Response
+     */
+    public function indexAction($view = ApiDoc::DEFAULT_VIEW)
+    {
+        $reflection = new \ReflectionClass(ApiDoc::class);
+        AnnotationRegistry::registerFile($reflection->getFileName());
 
-    phpunit
+        $helper = new ApiDocHelper();
+        $extractor = $helper->getApiDocExtractor();
+        $extractor->setRouteCollection($this->getRoutes());
+        $extractedDoc = $extractor->all($view);
+        $htmlContent = $helper->getFormatter('html')->format($extractedDoc);
 
+        $response = (new Response($htmlContent, 200, array('Content-Type' => 'text/html')));
+        $response->send();
+        exit();
+    }
 
-Credits
--------
+    /**
+     * @return RouteCollection
+     */        
+    protected function getRoutes()
+    {
+        //Obtain or fill routes collection   
+    }
+}
+```
 
-The design is heavily inspired by the
-[swagger-ui](https://github.com/wordnik/swagger-ui) project.
-Some icons from the [Glyphicons](http://glyphicons.com/) library are used to
-render the documentation.
+###### DocsController.php
+```php
+<?php
 
+namespace Acme;
 
-License
--------
+use Akuma\Component\ApiDoc\Annotation\ApiDoc;
 
-This bundle is released under the MIT license. See the complete license in the
-bundle:
+class ApiController
+{
+    /**
+     * @ApiDoc(
+     *           requirements = {
+     *                {
+     *                   "name"="name",
+     *                   "datatype"="array",
+     *                   "requirements"="\w+",
+     *                   "description" = "description for this parameter"
+     *          }
+     *            },
+     *       )
+     */
+    public function indexAction()
+    {
+        //Do some cool stuff
+    }
+}
+```
 
-    Resources/meta/LICENSE
+###### console.php
+```php
+<?php
+
+// Application
+$app = new \Silex\Application();
+
+$this->app['routes'] = $this->app->extend(
+    'routes',
+    function (\Symfony\Component\Routing\RouteCollection $routes) {
+
+        $loader = new Symfony\Component\Routing\Loader\YamlFileLoader(
+            new \Symfony\Component\Config\FileLocator(__DIR__ . '/../app/config')
+        );
+        $collection = $loader->load('routes.yml');
+        $routes->addCollection($collection);
+
+        return $routes;
+    });
+
+//.... Silex Application configuration
+// for orm.em see here http://dflydev.com/projects/doctrine-orm-service-provider/
+// for twig see here https://silex.symfony.com/doc/1.3/providers/twig.html
+
+$application = new Application();
+$application->addCommands([
+    new \Akuma\Component\ApiDoc\Command\DumpCommand(),
+]);
+
+$application->run();
+```
