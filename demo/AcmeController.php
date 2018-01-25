@@ -1,21 +1,29 @@
 <?php
-use Akuma\Component\ApiDoc\Annotation\ApiDoc;
+
 
 class AcmeController
 {
     /**
-     * @ApiDoc(
-     *           requirements = {
-     *                {
-     *                   "name"="name",
-     *                   "datatype"="array",
-     *                   "requirements"="\w+",
-     *                   "description" = "description for this parameter"
-     *          }
-     *            },
-     *       )
+     * @\Swagger\Annotations\Response(
+     *   response="200",
+     *   description="Success",
+     *   @\Akuma\Component\ApiDoc\Annotation\Model(type=\ExampleObject::class),
+     * )
+     *
      */
     public function indexPage()
+    {
+    }
+
+    /**
+     * @\Swagger\Annotations\Response(
+     *   response="200",
+     *   description="Success",
+     *   @\Akuma\Component\ApiDoc\Annotation\Model(type=\ExampleJmsObject::class),
+     * )
+     *
+     */
+    public function indexJmsPage()
     {
     }
 }

@@ -20,10 +20,13 @@
     ],
     "require": {
         "php": ">=5.4",
-        "symfony/twig-bridge": "~2.3|~3.0|~4.0",
         "symfony/routing": "~2.3|~3.0|~4.0",
-        "symfony/templating": "~2.3|~3.0|~4.0",
-        "michelf/php-markdown": "~1.4"
+        "symfony/property-info": "~2.3|~3.0|~4.0",
+        "exsyst/swagger": "^0.3.2",
+        "doctrine/common": "~2.3",
+        "zircote/swagger-php": "^2.0",
+        "phpdocumentor/reflection-docblock": "^4.2",
+        "psr/cache": "^1.0"
     },
     "conflict": {
         "jms/serializer": "<0.12",
@@ -32,10 +35,7 @@
         "symfony/symfony": "~2.7.8"
     },
     "require-dev": {
-        "symfony/console": "~2.3|~3.0|~4.0",
         "symfony/form": "~2.3|~3.0|~4.0",
-        "symfony/validator": "~2.3|~3.0|~4.0",
-        "symfony/options-resolver": "~2.3|~3.0|~4.0",
         "jms/serializer": "^1.10",
         "doctrine/orm": "~2.3"
     },
